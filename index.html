@@ -36,6 +36,11 @@
   .logo svg { width:22px; height:22px; }
   .header-text h1 { font-size:18px; font-weight:600; letter-spacing:-0.3px; }
   .header-text p { font-size:12px; color:var(--text3); margin-top:1px; }
+  .weather-widget { margin-left:auto; display:flex; flex-direction:column; align-items:center;
+    gap:2px; flex-shrink:0; min-width:52px; }
+  .weather-icon { font-size:30px; line-height:1; filter:drop-shadow(0 0 6px rgba(79,195,247,0.3)); }
+  .weather-temp { font-size:12px; color:var(--text2); font-weight:600; }
+  .weather-desc { font-size:10px; color:var(--text3); text-align:center; line-height:1.2; max-width:58px; }
 
   /* NAV */
   .nav { display:flex; gap:4px; padding:0 20px 14px; overflow-x:auto; scrollbar-width:none; }
@@ -217,7 +222,12 @@
       </div>
       <div class="header-text">
         <h1>Euphoria Spa</h1>
-        <p>Marquis · 400 gal · FROG Serene · Updated 14:19 UTC Jun 20</p>
+        <p>Marquis · 400 gal · FROG Serene · BioGuard</p>
+      </div>
+      <div class="weather-widget" id="weather-widget">
+        <div class="weather-icon" id="weather-icon">⏳</div>
+        <div class="weather-temp" id="weather-temp"></div>
+        <div class="weather-desc" id="weather-desc"></div>
       </div>
     </div>
   </div>
@@ -860,8 +870,7 @@ async function sendMessage() {
       const reply = data.content[0].text;
       chatHistory.push({ role:'assistant', content:reply });
       const ab = document.createElement('div'); ab.className = 'chat-bubble bubble-ai';
-      ab.innerHTML = `<div class="bubble-label">Spa assistant</div>${reply.replace(/
-/g,'<br>')}`; msgs.appendChild(ab);
+      ab.innerHTML = `<div class="bubble-label">Spa assistant</div>${reply.replace(/\n/g,'<br>')}`; msgs.appendChild(ab);
     }
   } catch(err) {
     typing.remove();
@@ -881,6 +890,48 @@ function clearChat() {
 }
 
 function dismissBanner() { document.getElementById('install-banner').style.display='none'; localStorage.setItem('banner_dismissed','1'); }
+
+
+// ─── LIVE WEATHER (Open-Meteo, no API key needed) ───────────────────────────
+// Westford MA: lat 42.5892, lon -71.4386
+async function loadWeather() {
+  try {
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=42.5892&longitude=-71.4386' +
+      '&current=temperature_2m,weathercode,is_day&temperature_unit=fahrenheit&timezone=America%2FNew_York';
+    const res = await fetch(url);
+    const data = await res.json();
+    const temp = Math.round(data.current.temperature_2m);
+    const code = data.current.weathercode;
+    const isDay = data.current.is_day === 1;
+    const { icon, desc } = weatherIcon(code, isDay);
+    document.getElementById('weather-icon').textContent = icon;
+    document.getElementById('weather-temp').textContent = temp + '°F';
+    document.getElementById('weather-desc').textContent = desc;
+  } catch(e) {
+    document.getElementById('weather-icon').textContent = '🌡️';
+    document.getElementById('weather-desc').textContent = 'Westford';
+  }
+}
+
+function weatherIcon(code, isDay) {
+  // WMO weather codes → emoji + description
+  if (code === 0)  return isDay ? { icon:'☀️',  desc:'Clear' }        : { icon:'🌙', desc:'Clear' };
+  if (code === 1)  return isDay ? { icon:'🌤️',  desc:'Mostly clear' } : { icon:'🌙', desc:'Mostly clear' };
+  if (code === 2)  return isDay ? { icon:'⛅',  desc:'Partly cloudy'} : { icon:'☁️', desc:'Partly cloudy' };
+  if (code === 3)  return { icon:'☁️',  desc:'Overcast' };
+  if (code <= 49)  return { icon:'🌫️',  desc:'Fog' };
+  if (code <= 55)  return { icon:'🌦️',  desc:'Drizzle' };
+  if (code <= 65)  return { icon:'🌧️',  desc:'Rain' };
+  if (code <= 75)  return { icon:'❄️',  desc:'Snow' };
+  if (code <= 82)  return { icon:'🌧️',  desc:'Rain showers' };
+  if (code <= 86)  return { icon:'🌨️',  desc:'Snow showers' };
+  if (code <= 99)  return { icon:'⛈️',  desc:'Thunderstorm' };
+  return { icon:'🌡️', desc:'Westford' };
+}
+
+loadWeather();
+// Refresh weather every 15 minutes
+setInterval(loadWeather, 15 * 60 * 1000);
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
