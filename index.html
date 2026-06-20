@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Spa">
+<meta name="theme-color" content="#0a1628">
+<title>Euphoria Spa Assistant</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a1628; --bg2: #0f1f3d; --bg3: #162545;
+    --card: #1a2d50; --card2: #1f3460;
+    --accent: #4fc3f7; --accent2: #0288d1; --accent-glow: rgba(79,195,247,0.15);
+    --text: #e8f4fd; --text2: #90b8d8; --text3: #5a8aaa;
+    --ok: #4caf7d; --ok-bg: rgba(76,175,125,0.15);
+    --warn: #ffb74d; --warn-bg: rgba(255,183,77,0.15);
+    --danger: #ef5350; --danger-bg: rgba(239,83,80,0.15);
+    --border: rgba(79,195,247,0.12); --radius: 16px; --radius-sm: 10px;
+  }
+  html, body { height:100%; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',sans-serif;
+    font-size:16px; line-height:1.5; -webkit-font-smoothing:antialiased; overscroll-behavior:none; }
+  .app { max-width:480px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; }
+
+  /* HEADER */
+  .header { padding:56px 20px 16px; background:linear-gradient(180deg,#0a1628 0%,transparent 100%);
+    position:sticky; top:0; z-index:10; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); }
+  .header-inner { display:flex; align-items:center; gap:14px; }
+  .logo { width:44px; height:44px; border-radius:12px; background:var(--accent-glow);
+    border:1px solid var(--border); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .logo svg { width:22px; height:22px; }
+  .header-text h1 { font-size:18px; font-weight:600; letter-spacing:-0.3px; }
+  .header-text p { font-size:12px; color:var(--text3); margin-top:1px; }
+
+  /* NAV */
+  .nav { display:flex; gap:4px; padding:0 20px 14px; overflow-x:auto; scrollbar-width:none; }
+  .nav::-webkit-scrollbar { display:none; }
+  .nav-btn { flex-shrink:0; padding:7px 16px; border-radius:20px; border:1px solid var(--border);
+    background:transparent; color:var(--text2); font-size:13px; font-weight:500; cursor:pointer;
+    transition:all 0.2s; -webkit-tap-highlight-color:transparent; }
+  .nav-btn.active { background:var(--accent); border-color:var(--accent); color:#0a1628; font-weight:600; }
+
+  /* CONTENT */
+  .content { flex:1; padding:0 20px 40px; }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  /* CARDS */
+  .card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px 20px; margin-bottom:14px; }
+  .card-title { font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase;
+    letter-spacing:0.08em; margin-bottom:14px; }
+
+  /* INPUTS */
+  .input-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+  .input-group { display:flex; flex-direction:column; gap:5px; }
+  .input-label { font-size:12px; color:var(--text2); font-weight:500;
+    display:flex; justify-content:space-between; align-items:center; }
+  .input-range { font-size:10px; color:var(--text3); }
+  input[type="number"] { width:100%; background:var(--bg3); border:1px solid var(--border);
+    border-radius:var(--radius-sm); color:var(--text); font-size:17px; font-weight:300;
+    padding:10px 12px; outline:none; transition:border-color 0.2s; -webkit-appearance:none; }
+  input[type="number"]:focus { border-color:var(--accent); }
+  input[type="number"]::placeholder { color:var(--text3); font-weight:300; }
+
+  /* ANALYZE BTN */
+  .btn-analyze { width:100%; background:var(--accent); color:#0a1628; border:none;
+    border-radius:var(--radius-sm); font-size:16px; font-weight:700; padding:14px;
+    cursor:pointer; letter-spacing:0.02em; transition:opacity 0.2s,transform 0.1s;
+    -webkit-tap-highlight-color:transparent; }
+  .btn-analyze:active { transform:scale(0.98); opacity:0.9; }
+
+  /* PARAMETER GAUGES */
+  .gauge-row { display:flex; align-items:center; gap:12px; padding:10px 0;
+    border-bottom:1px solid var(--border); }
+  .gauge-row:last-child { border-bottom:none; padding-bottom:0; }
+  .gauge-row:first-child { padding-top:0; }
+  .gauge-name { font-size:13px; color:var(--text2); width:110px; flex-shrink:0; }
+  .gauge-track { flex:1; height:6px; background:var(--bg3); border-radius:3px; position:relative; overflow:visible; }
+  .gauge-fill { height:100%; border-radius:3px; transition:width 0.4s; }
+  .gauge-marker { position:absolute; top:-5px; width:2px; height:16px; border-radius:1px; background:var(--accent); opacity:0.5; }
+  .gauge-val { font-size:13px; font-weight:600; width:52px; text-align:right; flex-shrink:0; }
+  .gauge-badge { font-size:10px; font-weight:700; padding:2px 7px; border-radius:5px; width:38px;
+    text-align:center; flex-shrink:0; }
+  .gbadge-ok { background:var(--ok-bg); color:var(--ok); }
+  .gbadge-warn { background:var(--warn-bg); color:var(--warn); }
+  .gbadge-danger { background:var(--danger-bg); color:var(--danger); }
+  .gbadge-hi { background:rgba(239,83,80,0.12); color:#ff8a80; }
+
+  /* QUALITY SCORE */
+  .score-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .score-cell { background:var(--bg3); border-radius:var(--radius-sm); padding:12px 8px; text-align:center; border:1px solid var(--border); }
+  .score-label { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px; font-weight:600; }
+  .score-stars { font-size:14px; letter-spacing:1px; }
+
+  /* CORRECTIVE STEPS */
+  .step-block { border:1px solid var(--border); border-radius:var(--radius-sm); margin-bottom:12px; overflow:hidden; }
+  .step-block:last-child { margin-bottom:0; }
+  .step-header { display:flex; align-items:flex-start; gap:12px; padding:14px 16px;
+    background:var(--bg3); border-bottom:1px solid var(--border); }
+  .step-num { width:26px; height:26px; border-radius:50%; display:flex; align-items:center;
+    justify-content:center; font-size:13px; font-weight:800; flex-shrink:0; margin-top:1px; }
+  .step-num-danger { background:var(--danger-bg); color:var(--danger); }
+  .step-num-warn { background:var(--warn-bg); color:var(--warn); }
+  .step-title { font-size:15px; font-weight:600; color:var(--text); line-height:1.3; }
+  .step-subtitle { font-size:12px; color:var(--text3); margin-top:2px; }
+  .step-body { padding:14px 16px; }
+  .step-dose { font-size:16px; font-weight:700; color:var(--accent); margin-bottom:10px; line-height:1.3; }
+  .step-product { display:inline-block; font-size:11px; font-weight:600; color:var(--accent);
+    background:var(--accent-glow); border:1px solid rgba(79,195,247,0.2);
+    padding:3px 10px; border-radius:6px; margin-bottom:10px; }
+  .step-instructions { list-style:none; }
+  .step-instructions li { font-size:13px; color:var(--text2); padding:4px 0;
+    padding-left:16px; position:relative; line-height:1.5; }
+  .step-instructions li::before { content:'•'; position:absolute; left:0; color:var(--text3); }
+  .step-warning { display:flex; align-items:center; gap:8px; margin-top:10px;
+    background:var(--danger-bg); border:1px solid rgba(239,83,80,0.2);
+    border-radius:8px; padding:8px 12px; }
+  .step-warning span { font-size:12px; color:var(--danger); font-weight:500; }
+  .step-wait { display:flex; align-items:center; gap:8px; margin-top:8px;
+    background:var(--accent-glow); border:1px solid rgba(79,195,247,0.15);
+    border-radius:8px; padding:8px 12px; }
+  .step-wait span { font-size:12px; color:var(--accent); font-weight:500; }
+
+  /* MAINTENANCE ROWS */
+  .maint-row { display:flex; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); align-items:flex-start; }
+  .maint-row:last-child { border-bottom:none; padding-bottom:0; }
+  .maint-row:first-child { padding-top:0; }
+  .maint-icon { width:32px; height:32px; border-radius:8px; display:flex; align-items:center;
+    justify-content:center; font-size:12px; font-weight:800; flex-shrink:0; }
+  .maint-label { font-size:14px; font-weight:500; color:var(--text); }
+  .maint-desc { font-size:12px; color:var(--text3); margin-top:2px; line-height:1.4; }
+
+  /* ROUTINE TAB */
+  .routine-row { display:flex; gap:14px; padding:12px 0; border-bottom:1px solid var(--border); align-items:flex-start; }
+  .routine-row:last-child { border-bottom:none; padding-bottom:0; }
+  .routine-row:first-child { padding-top:0; }
+  .routine-freq { font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-glow);
+    border:1px solid rgba(79,195,247,0.2); padding:4px 10px; border-radius:6px;
+    white-space:nowrap; flex-shrink:0; letter-spacing:0.02em; margin-top:1px; }
+  .routine-desc { font-size:14px; color:var(--text); line-height:1.5; }
+  .routine-sub { font-size:12px; color:var(--text3); margin-top:2px; }
+
+  /* TARGETS */
+  .target-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .target-cell { background:var(--bg3); border-radius:var(--radius-sm); padding:12px; border:1px solid var(--border); }
+  .target-name { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.05em; font-weight:600; margin-bottom:4px; }
+  .target-val { font-size:18px; font-weight:300; color:var(--accent); letter-spacing:-0.5px; }
+  .target-unit { font-size:11px; color:var(--text3); margin-top:2px; }
+
+  /* CHAT */
+  .chat-area { min-height:180px; margin-bottom:12px; }
+  .chat-bubble { padding:12px 15px; border-radius:var(--radius-sm); margin-bottom:10px; font-size:15px; line-height:1.6; }
+  .bubble-ai { background:var(--card2); border:1px solid var(--border); color:var(--text); border-radius:16px 16px 16px 4px; }
+  .bubble-user { background:var(--accent2); color:white; border-radius:16px 16px 4px 16px; margin-left:20px; }
+  .bubble-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:5px; opacity:0.6; }
+  .chat-input-row { display:flex; gap:8px; align-items:flex-end; }
+  textarea { flex:1; background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius-sm);
+    color:var(--text); font-size:15px; padding:11px 13px; outline:none; resize:none;
+    min-height:44px; max-height:120px; font-family:inherit; line-height:1.4; transition:border-color 0.2s; }
+  textarea:focus { border-color:var(--accent); }
+  textarea::placeholder { color:var(--text3); }
+  .btn-send { width:44px; height:44px; border-radius:11px; background:var(--accent); border:none;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    transition:opacity 0.2s; -webkit-tap-highlight-color:transparent; }
+  .btn-send:disabled { opacity:0.3; }
+  .btn-send svg { width:20px; height:20px; }
+  .typing { display:flex; align-items:center; gap:5px; padding:12px 15px;
+    background:var(--card2); border:1px solid var(--border); border-radius:16px 16px 16px 4px;
+    width:fit-content; margin-bottom:10px; }
+  .typing span { width:6px; height:6px; background:var(--accent); border-radius:50%;
+    animation:bounce 1.2s infinite; opacity:0.5; }
+  .typing span:nth-child(2) { animation-delay:0.2s; }
+  .typing span:nth-child(3) { animation-delay:0.4s; }
+  @keyframes bounce { 0%,80%,100%{transform:translateY(0);opacity:0.5} 40%{transform:translateY(-6px);opacity:1} }
+
+  /* SETUP */
+  .setup-screen { text-align:center; padding:32px 16px; }
+  .setup-icon { width:64px; height:64px; background:var(--accent-glow); border:1px solid var(--border);
+    border-radius:18px; margin:0 auto 20px; display:flex; align-items:center; justify-content:center; }
+  .setup-icon svg { width:32px; height:32px; }
+  .setup-title { font-size:20px; font-weight:600; margin-bottom:8px; letter-spacing:-0.4px; }
+  .setup-body { font-size:14px; color:var(--text2); line-height:1.6; margin-bottom:24px; }
+  .setup-body a { color:var(--accent); text-decoration:none; }
+  .key-input { width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius-sm);
+    color:var(--text); font-size:13px; padding:12px 14px; outline:none; margin-bottom:10px;
+    font-family:'SF Mono',monospace; transition:border-color 0.2s; }
+  .key-input:focus { border-color:var(--accent); }
+  .key-note { font-size:12px; color:var(--text3); margin-top:10px; line-height:1.5; }
+
+  /* MISC */
+  .install-banner { background:var(--accent-glow); border:1px solid rgba(79,195,247,0.25);
+    border-radius:var(--radius-sm); padding:11px 14px; margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+  .install-banner p { font-size:13px; color:var(--text2); flex:1; line-height:1.4; }
+  .install-banner p strong { color:var(--accent); }
+  .btn-dismiss { background:none; border:none; color:var(--text3); cursor:pointer; font-size:18px; padding:0 4px; -webkit-tap-highlight-color:transparent; }
+  .water-bg { position:fixed; bottom:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg,transparent,var(--accent),transparent); opacity:0.25; animation:shimmer 3s infinite; }
+  @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+  ::-webkit-scrollbar { width:0; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#4fc3f7" stroke-width="1.5">
+          <path d="M3 12c1-4 5-7 9-7s8 3 9 7c-1 4-5 7-9 7s-8-3-9-7z"/>
+          <path d="M8 12c.5-2 2-3.5 4-3.5s3.5 1.5 4 3.5c-.5 2-2 3.5-4 3.5s-3.5-1.5-4-3.5z"/>
+        </svg>
+      </div>
+      <div class="header-text">
+        <h1>Euphoria Spa</h1>
+        <p>Marquis · 400 gal · FROG Serene · BioGuard</p>
+      </div>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <button class="nav-btn active" onclick="switchTab('test',this)">Water test</button>
+    <button class="nav-btn" onclick="switchTab('ask',this)">Ask the spa</button>
+    <button class="nav-btn" onclick="switchTab('routine',this)">Routine</button>
+    <button class="nav-btn" onclick="switchTab('settings',this)">Settings</button>
+  </nav>
+
+  <div class="content">
+
+    <!-- ══ WATER TEST TAB ══════════════════════════════════════════════════ -->
+    <div id="tab-test" class="tab-panel active">
+
+      <div id="install-banner" class="install-banner" style="display:none">
+        <p><strong>Add to home screen</strong> — tap Share then "Add to Home Screen."</p>
+        <button class="btn-dismiss" onclick="dismissBanner()">×</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Enter test results</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <div class="input-label">Bromine <span class="input-range">2–4 ppm</span></div>
+            <input type="number" id="bromine" placeholder="ppm" min="0" max="20" step="0.1" inputmode="decimal">
+          </div>
+          <div class="input-group">
+            <div class="input-label">pH <span class="input-range">7.4–7.6</span></div>
+            <input type="number" id="ph" placeholder="e.g. 7.4" min="6" max="9" step="0.1" inputmode="decimal">
+          </div>
+          <div class="input-group">
+            <div class="input-label">Total alkalinity <span class="input-range">120–150 ppm</span></div>
+            <input type="number" id="ta" placeholder="ppm" min="0" max="400" step="1" inputmode="numeric">
+          </div>
+          <div class="input-group">
+            <div class="input-label">Calcium hardness <span class="input-range">100–200 ppm</span></div>
+            <input type="number" id="ch" placeholder="ppm" min="0" max="800" step="1" inputmode="numeric">
+          </div>
+          <div class="input-group">
+            <div class="input-label">Phosphate <span class="input-range">0–125 ppb</span></div>
+            <input type="number" id="phos" placeholder="ppb" min="0" max="5000" step="1" inputmode="numeric">
+          </div>
+          <div class="input-group">
+            <div class="input-label">TDS <span class="input-range">&lt;1500</span></div>
+            <input type="number" id="tds" placeholder="ppm" min="0" max="5000" step="1" inputmode="numeric">
+          </div>
+        </div>
+        <button class="btn-analyze" onclick="analyze()">Analyze water →</button>
+      </div>
+
+      <div id="results-area" style="display:none">
+
+        <!-- Parameter gauges -->
+        <div class="card">
+          <div class="card-title">Key parameters</div>
+          <div id="gauges-body"></div>
+        </div>
+
+        <!-- Water quality score -->
+        <div class="card">
+          <div class="card-title">Water quality score</div>
+          <div id="score-body"></div>
+        </div>
+
+        <!-- Corrective steps (shown only if issues) -->
+        <div id="steps-card" class="card" style="display:none">
+          <div class="card-title">Corrective steps — do in order</div>
+          <div id="steps-body"></div>
+        </div>
+
+        <!-- All clear (shown only if no issues) -->
+        <div id="allclear-card" style="display:none">
+          <div class="card" style="text-align:center;padding:24px 20px">
+            <div style="font-size:36px;margin-bottom:10px">✓</div>
+            <div style="font-size:17px;font-weight:600;color:var(--ok);margin-bottom:6px">Water is balanced</div>
+            <div style="font-size:14px;color:var(--text2)">All parameters in range. No corrective action needed.</div>
+          </div>
+        </div>
+
+        <!-- Regular maintenance — always shown -->
+        <div class="card">
+          <div class="card-title">Regular maintenance</div>
+          <div class="maint-row">
+            <div class="maint-icon" style="background:var(--ok-bg);color:var(--ok)">Br</div>
+            <div><div class="maint-label">Brominating tablets</div>
+            <div class="maint-desc">Test and maintain 2–4 ppm via FROG Serene cartridge. Replace cartridge every 4 weeks.</div></div>
+          </div>
+          <div class="maint-row">
+            <div class="maint-icon" style="background:var(--warn-bg);color:var(--warn)">⚡</div>
+            <div><div class="maint-label">Spa Shock</div>
+            <div class="maint-desc">2 tbsp SpaGuard Brominating Concentrate after every use. Jets on 15 min, cover off 30 min.</div></div>
+          </div>
+          <div class="maint-row">
+            <div class="maint-icon" style="background:var(--accent-glow);color:var(--accent)">◎</div>
+            <div><div class="maint-label">Water Clarifier</div>
+            <div class="maint-desc">1 tbsp per week to maintain clarity.</div></div>
+          </div>
+          <div class="maint-row">
+            <div class="maint-icon" style="background:rgba(180,100,255,0.12);color:#b47aff">S</div>
+            <div><div class="maint-label">Stain &amp; Scale Control</div>
+            <div class="maint-desc">3 tbsp per week to prevent mineral deposits on shell and equipment.</div></div>
+          </div>
+          <div class="maint-row" style="border:none">
+            <div class="maint-icon" style="background:rgba(100,200,100,0.12);color:#6dcc6d">🌿</div>
+            <div><div class="maint-label">Natural Spa Enzyme</div>
+            <div class="maint-desc">½ cup per week to break down body oils and organics before they cloud the water.</div></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══ ASK TAB ════════════════════════════════════════════════════════ -->
+    <div id="tab-ask" class="tab-panel">
+      <div id="api-setup" style="display:none">
+        <div class="setup-screen">
+          <div class="setup-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#4fc3f7" stroke-width="1.5">
+              <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/>
+              <path d="M12 8v4l3 3"/>
+            </svg>
+          </div>
+          <div class="setup-title">One-time setup</div>
+          <div class="setup-body">Enter your Anthropic API key to enable AI answers. Get one free at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.<br><br>Your key is saved only on this device.</div>
+          <input type="password" class="key-input" id="api-key-input" placeholder="sk-ant-...">
+          <button class="btn-analyze" onclick="saveKey()">Save and start chatting</button>
+          <p class="key-note">Stored in your browser only. Never sent anywhere except Anthropic's API.</p>
+        </div>
+      </div>
+      <div id="chat-interface" style="display:none">
+        <div class="card">
+          <div class="card-title">Ask anything about your spa</div>
+          <div class="chat-area" id="chat-messages">
+            <div class="chat-bubble bubble-ai">
+              <div class="bubble-label">Spa assistant</div>
+              Hey! I know your Marquis Euphoria inside and out — 400 gallons, FROG Serene in-line bromine system, BioGuard products. Ask me anything about chemistry, dosing, troubleshooting, or maintenance.
+            </div>
+          </div>
+          <div class="chat-input-row">
+            <textarea id="chat-input" placeholder="Ask a question…" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+            <button class="btn-send" id="send-btn" onclick="sendMessage()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+        </div>
+        <button onclick="clearChat()" style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:4px 0;">Clear conversation</button>
+      </div>
+    </div>
+
+    <!-- ══ ROUTINE TAB ════════════════════════════════════════════════════ -->
+    <div id="tab-routine" class="tab-panel">
+      <div class="card">
+        <div class="card-title">Water targets</div>
+        <div class="target-grid">
+          <div class="target-cell"><div class="target-name">Bromine</div><div class="target-val">2–4</div><div class="target-unit">ppm</div></div>
+          <div class="target-cell"><div class="target-name">pH</div><div class="target-val">7.4–7.6</div></div>
+          <div class="target-cell"><div class="target-name">Alkalinity</div><div class="target-val">120–150</div><div class="target-unit">ppm</div></div>
+          <div class="target-cell"><div class="target-name">Hardness</div><div class="target-val">100–200</div><div class="target-unit">ppm</div></div>
+          <div class="target-cell"><div class="target-name">Phosphate</div><div class="target-val">0–125</div><div class="target-unit">ppb</div></div>
+          <div class="target-cell"><div class="target-name">TDS</div><div class="target-val">&lt;1500</div><div class="target-unit">ppm</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Maintenance schedule</div>
+        <div class="routine-row">
+          <span class="routine-freq">After each use</span>
+          <div><div class="routine-desc">2 tbsp SpaGuard Brominating Concentrate</div>
+          <div class="routine-sub">Jets on 15 min · cover off 30 min</div></div>
+        </div>
+        <div class="routine-row">
+          <span class="routine-freq">Weekly</span>
+          <div><div class="routine-desc">1 tbsp Water Clarifier + 3 tbsp Stain &amp; Scale + ½ cup Enzyme</div>
+          <div class="routine-sub">Test strips: bromine and pH. Adjust only if out of range.</div></div>
+        </div>
+        <div class="routine-row">
+          <span class="routine-freq">Every 4 weeks</span>
+          <div><div class="routine-desc">Replace FROG Serene bromine cartridge</div>
+          <div class="routine-sub">Rinse filter with hose</div></div>
+        </div>
+        <div class="routine-row">
+          <span class="routine-freq">Every 4 months</span>
+          <div><div class="routine-desc">Replace FROG Serene mineral cartridge</div>
+          <div class="routine-sub">Deep clean or replace filter · professional water test</div></div>
+        </div>
+        <div class="routine-row" style="border:none">
+          <span class="routine-freq">Every 3–4 months</span>
+          <div><div class="routine-desc">Full drain and refill</div>
+          <div class="routine-sub">Ahh-Some pipe purge first · hose pre-filter on refill</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SETTINGS TAB ════════════════════════════════════════════════════ -->
+    <div id="tab-settings" class="tab-panel">
+      <div class="card">
+        <div class="card-title">Spa profile</div>
+        <div style="font-size:14px;color:var(--text2);line-height:2">
+          <div><span style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.05em">Brand</span><br>Marquis Euphoria</div>
+          <div style="margin-top:10px"><span style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.05em">Volume</span><br>400 US gallons</div>
+          <div style="margin-top:10px"><span style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.05em">System</span><br>FROG Serene in-line (bromine + mineral cartridges)</div>
+          <div style="margin-top:10px"><span style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.05em">Products</span><br>SpaGuard / BioGuard line</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">AI assistant key</div>
+        <p style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:14px">The "Ask the spa" tab uses your Anthropic API key. Stored only on this device.</p>
+        <input type="password" class="key-input" id="settings-key-input" placeholder="sk-ant-..." style="margin-bottom:10px">
+        <button class="btn-analyze" onclick="saveKeyFromSettings()">Save key</button>
+        <button onclick="clearKey()" style="width:100%;margin-top:8px;background:none;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--danger);font-size:14px;padding:12px;cursor:pointer;">Remove saved key</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Add to home screen</div>
+        <p style="font-size:14px;color:var(--text2);line-height:1.6">
+          On iPhone: tap the <strong style="color:var(--accent)">Share</strong> button in Safari → <strong style="color:var(--accent)">"Add to Home Screen."</strong><br><br>
+          The app appears on your home screen like any native app — no App Store required.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+<div class="water-bg"></div>
+
+<script>
+// ─── SPA CONFIG ──────────────────────────────────────────────────────────────
+const SPA = { gallons: 400 };
+const PARAMS = {
+  bromine: { label:'Bromine', unit:'ppm', low:2, high:4, max:15, warnLow:1, warnHigh:6 },
+  ph:      { label:'pH',      unit:'',   low:7.4, high:7.6, max:9, warnLow:7.0, warnHigh:8.0 },
+  ta:      { label:'Alkalinity', unit:'ppm', low:120, high:150, max:300, warnLow:80, warnHigh:200 },
+  ch:      { label:'Hardness',   unit:'ppm', low:100, high:200, max:600, warnLow:50, warnHigh:300 },
+  phos:    { label:'Phosphate',  unit:'ppb', low:0, high:125, max:2000, warnLow:-1, warnHigh:200 },
+  tds:     { label:'TDS',        unit:'ppm', low:0, high:1500, max:3000, warnLow:-1, warnHigh:2000 }
+};
+
+const SYSTEM_PROMPT = `You are a knowledgeable hot tub water chemistry assistant for a Marquis Euphoria spa:
+- Volume: 400 US gallons
+- System: FROG Serene in-line bromine + mineral cartridges
+- Products: SpaGuard/BioGuard line (Brominating Concentrate, pH Decreaser, pH Increaser, Total Alkalinity Increaser, Calcium Hardness Increaser, Phosphate Remover, Water Clarifier, Stain & Scale Control, Natural Spa Enzyme)
+- SpaGuard Brominating Concentrate: 82.5% sodium dichloro + 14.7% sodium bromide
+- After each use: 2 tbsp Brominating Concentrate shock
+- Weekly: 1 tbsp Water Clarifier, 3 tbsp Stain & Scale, 0.5 cup Enzyme
+- Targets: Bromine 2-4ppm, pH 7.4-7.6, TA 120-150ppm, CH 100-200ppm, Phosphate 0-125ppb, TDS <1500ppm
+- Recent history: algae bloom, full drain/clean/refill, now fresh water
+Give exact doses in tsp/tbsp for 400 gallons. Be direct — user may be standing at the spa. Always give order and wait times when multiple chemicals needed.`;
+
+let chatHistory = [];
+let apiKey = localStorage.getItem('spa_api_key') || '';
+
+// ─── TABS ────────────────────────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name === 'ask') initChat();
+  if (name === 'settings' && apiKey) document.getElementById('settings-key-input').value = apiKey;
+}
+
+// ─── DOSING HELPERS ──────────────────────────────────────────────────────────
+// Bromine: SpaGuard Brominating Concentrate — 1 tsp raises ~0.625 ppm in 400 gal
+// pH Up: sodium carbonate — 1 tsp raises pH ~0.25 in 400 gal
+// pH Down: sodium bisulfate — 1 tsp lowers pH ~0.25 in 400 gal
+// TA Up: sodium bicarbonate — 2 tbsp (6 tsp) raises TA ~12.5 ppm in 400 gal
+// TA Down: dry acid — same as pH down, aerated
+// CH Up: calcium chloride — 2 tbsp (6 tsp) raises CH ~8.75 ppm in 400 gal
+// CH Down: drain/dilute only
+// Phosphate: Spa Phosphate Remover — 1 tbsp per 100 gal for heavy load
+
+function fmtDose(tsp) {
+  if (tsp <= 0) return 'none needed';
+  if (tsp < 0.75) return '½ tsp';
+  if (tsp < 1.5) return '1 tsp';
+  if (tsp < 2.5) return '2 tsp';
+  const tbsp = tsp / 3;
+  if (tbsp < 1.25) return '1 tbsp';
+  if (tbsp < 1.75) return '1½ tbsp';
+  if (tbsp < 2.25) return '2 tbsp';
+  if (tbsp < 2.75) return '2½ tbsp';
+  if (tbsp < 3.5) return '3 tbsp';
+  if (tbsp < 4.5) return '4 tbsp';
+  const cups = tbsp / 16;
+  if (cups < 0.375) return '¼ cup + ' + fmtDose((tbsp % 4) * 3);
+  if (cups < 0.625) return '½ cup';
+  if (cups < 0.875) return '¾ cup';
+  return Math.round(cups * 4) / 4 + ' cup' + (cups >= 2 ? 's' : '');
+}
+
+function needsDivide(tsp) { return tsp / 3 > 3; } // > 3 tbsp → divide into thirds
+
+// ─── ANALYZE ────────────────────────────────────────────────────────────────
+function analyze() {
+  const vals = {
+    bromine: parseFloat(document.getElementById('bromine').value),
+    ph:      parseFloat(document.getElementById('ph').value),
+    ta:      parseFloat(document.getElementById('ta').value),
+    ch:      parseFloat(document.getElementById('ch').value),
+    phos:    parseFloat(document.getElementById('phos').value),
+    tds:     parseFloat(document.getElementById('tds').value)
+  };
+
+  const hasAny = Object.values(vals).some(v => !isNaN(v));
+  if (!hasAny) { alert('Enter at least one test result.'); return; }
+
+  // ── GAUGES ────────────────────────────────────────────────────────────────
+  let gaugesHtml = '';
+  for (const [key, cfg] of Object.entries(PARAMS)) {
+    const v = vals[key];
+    if (isNaN(v)) continue;
+    const pct = Math.min(100, (v / cfg.max) * 100);
+    const lowPct = (cfg.low / cfg.max) * 100;
+    const highPct = (cfg.high / cfg.max) * 100;
+    let status, color;
+    if (v < cfg.low) { status = 'LOW'; color = v < cfg.warnLow ? 'var(--danger)' : 'var(--warn)'; }
+    else if (v > cfg.high) { status = 'HIGH'; color = v > cfg.warnHigh ? 'var(--danger)' : 'var(--warn)'; }
+    else { status = 'OK'; color = 'var(--ok)'; }
+    const badgeClass = status === 'OK' ? 'gbadge-ok' : (color === 'var(--danger)' ? 'gbadge-danger' : 'gbadge-warn');
+    gaugesHtml += `<div class="gauge-row">
+      <div class="gauge-name">${cfg.label}</div>
+      <div class="gauge-track">
+        <div class="gauge-fill" style="width:${pct}%;background:${color}"></div>
+        <div class="gauge-marker" style="left:${lowPct}%"></div>
+        <div class="gauge-marker" style="left:${highPct}%"></div>
+      </div>
+      <div class="gauge-val" style="color:${color}">${v}${cfg.unit ? ' ' + cfg.unit : ''}</div>
+      <div class="gauge-badge ${badgeClass}">${status}</div>
+    </div>`;
+  }
+  document.getElementById('gauges-body').innerHTML = gaugesHtml;
+
+  // ── QUALITY SCORE ─────────────────────────────────────────────────────────
+  function stars(score) {
+    const full = Math.round(score * 5);
+    return '★'.repeat(full) + '☆'.repeat(5 - full);
+  }
+  // Comfort: pH + bromine + CH
+  let comfortScore = 1;
+  if (!isNaN(vals.ph)) comfortScore -= (vals.ph < 7.4 || vals.ph > 7.6) ? 0.25 : 0;
+  if (!isNaN(vals.bromine)) comfortScore -= (vals.bromine < 2 || vals.bromine > 5) ? 0.25 : 0;
+  if (!isNaN(vals.ch)) comfortScore -= vals.ch < 100 ? 0.2 : 0;
+  // Clarity: TA + TDS + phosphate
+  let clarityScore = 1;
+  if (!isNaN(vals.ta)) clarityScore -= (vals.ta < 120 || vals.ta > 150) ? 0.2 : 0;
+  if (!isNaN(vals.tds)) clarityScore -= vals.tds > 1500 ? 0.3 : 0;
+  if (!isNaN(vals.phos)) clarityScore -= vals.phos > 125 ? 0.25 : 0;
+  // Protection: bromine + pH + phosphate
+  let protScore = 1;
+  if (!isNaN(vals.bromine)) protScore -= (vals.bromine < 2) ? 0.4 : 0;
+  if (!isNaN(vals.ph)) protScore -= (vals.ph < 7.2 || vals.ph > 7.8) ? 0.3 : 0;
+  if (!isNaN(vals.phos)) protScore -= vals.phos > 500 ? 0.3 : 0;
+  [comfortScore, clarityScore, protScore] = [comfortScore, clarityScore, protScore].map(s => Math.max(0, Math.min(1, s)));
+
+  document.getElementById('score-body').innerHTML = `<div class="score-grid">
+    <div class="score-cell"><div class="score-label">Comfort</div><div class="score-stars" style="color:var(--warn)">${stars(comfortScore)}</div></div>
+    <div class="score-cell"><div class="score-label">Clarity</div><div class="score-stars" style="color:var(--warn)">${stars(clarityScore)}</div></div>
+    <div class="score-cell"><div class="score-label">Protection</div><div class="score-stars" style="color:var(--warn)">${stars(protScore)}</div></div>
+  </div>`;
+
+  // ── CORRECTIVE STEPS (ordered correctly) ──────────────────────────────────
+  const steps = [];
+
+  // Step priority order: TA → pH → CH → Phosphate → Bromine (always last)
+  // TOTAL ALKALINITY
+  if (!isNaN(vals.ta)) {
+    if (vals.ta < 120) {
+      const delta = 120 - vals.ta;
+      const tsp = (delta / 12.5) * 6;
+      const dose = fmtDose(tsp);
+      const divide = needsDivide(tsp);
+      steps.push({
+        severity: vals.ta < 80 ? 'danger' : 'warn',
+        title: 'Low Total Alkalinity',
+        subtitle: `Your result: ${vals.ta} ppm · Ideal: 120–150 ppm`,
+        product: 'Spa Total Alkalinity Increaser',
+        dose: `Add ${dose}`,
+        instructions: [
+          divide ? `Divide into 3 equal doses, 1 hour apart` : null,
+          'Add with jets running',
+          'Do not enter spa for 15 minutes after applying',
+          'Wait 15 minutes, then proceed to next step'
+        ].filter(Boolean),
+        warning: 'Low alkalinity causes pH to swing wildly and corrodes equipment.',
+        wait: '15 minutes before next step'
+      });
+    } else if (vals.ta > 150) {
+      const delta = vals.ta - 150;
+      const tsp = (delta / 12.5) * 6;
+      steps.push({
+        severity: 'warn',
+        title: 'High Total Alkalinity',
+        subtitle: `Your result: ${vals.ta} ppm · Ideal: 120–150 ppm`,
+        product: 'Spa pH Decreaser (dry acid)',
+        dose: `Add ${fmtDose(tsp)} with jets OFF, air on`,
+        instructions: [
+          'Turn jets OFF, turn air/blower ON',
+          'Add chemical, aerate for 1 hour',
+          'Repeat over 2–3 days if needed — do not try to fix in one shot',
+          'Retest before proceeding'
+        ],
+        warning: 'High alkalinity locks pH and reduces sanitizer efficiency.',
+        wait: '1 hour before next step'
+      });
+    }
+  }
+
+  // pH
+  if (!isNaN(vals.ph)) {
+    if (vals.ph < 7.4) {
+      const delta = 7.5 - vals.ph;
+      const tsp = delta / 0.25;
+      steps.push({
+        severity: vals.ph < 7.0 ? 'danger' : 'warn',
+        title: 'pH Adjustment Required — Too Low',
+        subtitle: `Your result: ${vals.ph} · Ideal: 7.4–7.6`,
+        product: 'Spa pH Increaser (sodium carbonate / soda ash)',
+        dose: `Add ${fmtDose(tsp)}`,
+        instructions: [
+          'Add with jets running',
+          'Wait at least 15 minutes, then retest',
+          'Do not enter spa for 15 minutes'
+        ],
+        warning: 'Low pH causes eye and skin irritation and corrodes equipment.',
+        wait: '15 minutes before next step'
+      });
+    } else if (vals.ph > 7.6) {
+      const delta = vals.ph - 7.5;
+      const tsp = delta / 0.25;
+      steps.push({
+        severity: vals.ph > 8.0 ? 'danger' : 'warn',
+        title: 'pH Adjustment Required — Too High',
+        subtitle: `Your result: ${vals.ph} · Ideal: 7.4–7.6`,
+        product: 'Spa pH Decreaser (sodium bisulfate)',
+        dose: `Add ${fmtDose(tsp)}`,
+        instructions: [
+          'Add with jets running',
+          'Wait at least 15 minutes after application, then retest',
+          'Do not enter spa for 15 minutes',
+          'High pH severely reduces bromine effectiveness — fix before adding sanitizer'
+        ],
+        warning: 'At pH 8.0+, up to 90% of your bromine is ineffective.',
+        wait: '15 minutes before next step'
+      });
+    }
+  }
+
+  // CALCIUM HARDNESS
+  if (!isNaN(vals.ch)) {
+    if (vals.ch < 100) {
+      const delta = 150 - vals.ch;
+      const tsp = (delta / 8.75) * 6;
+      const divide = needsDivide(tsp) || delta > 50;
+      steps.push({
+        severity: vals.ch < 50 ? 'danger' : 'warn',
+        title: 'Low Calcium Hardness',
+        subtitle: `Your result: ${vals.ch} ppm · Ideal: 100–200 ppm`,
+        product: 'Spa Calcium Hardness Increaser (calcium chloride)',
+        dose: `Add ${fmtDose(tsp)}`,
+        instructions: [
+          divide ? 'Divide into 3 equal doses' : null,
+          divide ? 'Wait 2 hours between each dose' : null,
+          'Apply each dose with jets running',
+          'Leave circulation on for at least 30 minutes per dose',
+          'Calcium chloride generates heat — add slowly'
+        ].filter(Boolean),
+        warning: 'Soft water is corrosive to your acrylic shell and equipment.',
+        wait: '2 hours before next step'
+      });
+    } else if (vals.ch > 200) {
+      const targetCh = 150;
+      const gallonsToDrain = Math.round(((vals.ch - targetCh) / vals.ch) * SPA.gallons);
+      steps.push({
+        severity: 'warn',
+        title: 'High Calcium Hardness',
+        subtitle: `Your result: ${vals.ch} ppm · Ideal: 100–200 ppm`,
+        product: 'Fresh water (dilution — no chemical fix)',
+        dose: `Drain and replace ~${gallonsToDrain} gallons`,
+        instructions: [
+          `Drain approximately ${gallonsToDrain} gallons`,
+          'Refill with fresh water through hose pre-filter',
+          'Run jets 30 minutes to mix',
+          'Retest before proceeding'
+        ],
+        warning: 'High hardness causes scaling on shell, jets, and heater.',
+        wait: '30 minutes after refill before next step'
+      });
+    }
+  }
+
+  // PHOSPHATE
+  if (!isNaN(vals.phos) && vals.phos > 125) {
+    const tbsp = Math.ceil((vals.phos / 125) * 2.5); // scale with severity
+    steps.push({
+      severity: vals.phos > 500 ? 'danger' : 'warn',
+      title: 'High Phosphate',
+      subtitle: `Your result: ${vals.phos} ppb · Ideal: 0–125 ppb`,
+      product: 'Spa Phosphate Remover + Water Clarifier',
+      dose: `Add ${tbsp} tbsp Phosphate Remover, immediately follow with 3 tbsp Water Clarifier`,
+      instructions: [
+        'Apply Spa Phosphate Remover first',
+        'Immediately follow with Water Clarifier — do not wait between them',
+        'Jets running during application',
+        'Do not enter spa for 15 minutes'
+      ],
+      warning: 'Phosphate feeds algae and degrades water quality rapidly.',
+      wait: '15 minutes before next step'
+    });
+  }
+
+  // BROMINE — always last
+  if (!isNaN(vals.bromine)) {
+    if (vals.bromine < 2) {
+      const delta = 3.0 - vals.bromine;
+      const tsp = delta / 0.625;
+      steps.push({
+        severity: vals.bromine < 0.5 ? 'danger' : 'warn',
+        title: 'Low Bromine',
+        subtitle: `Your result: ${vals.bromine} ppm · Ideal: 2–4 ppm`,
+        product: 'SpaGuard Brominating Concentrate',
+        dose: `Add ${fmtDose(tsp)}`,
+        instructions: [
+          'Pre-dissolve in a bucket of spa water first',
+          'Pour around the perimeter near return jets',
+          'Jets on 15 minutes',
+          'Leave cover off for 30 minutes',
+          'Retest in 1 hour before using spa'
+        ],
+        warning: vals.bromine < 0.5 ? 'Do not use spa — water is unsanitized.' : null,
+        wait: '1 hour — retest before use'
+      });
+    } else if (vals.bromine > 6) {
+      steps.push({
+        severity: vals.bromine > 10 ? 'danger' : 'warn',
+        title: 'High Bromine',
+        subtitle: `Your result: ${vals.bromine} ppm · Ideal: 2–4 ppm`,
+        product: 'None — allow natural dissipation',
+        dose: 'Do not add any chemicals',
+        instructions: [
+          'Leave cover off with jets running to off-gas bromine',
+          'Retest every 2 hours',
+          vals.bromine > 8 ? 'Do not enter spa until bromine drops below 8 ppm' : 'Do not enter spa until bromine drops below 5 ppm'
+        ],
+        warning: vals.bromine > 8 ? 'Do not enter spa until bromine drops below 8 ppm.' : null,
+        wait: 'Retest in 2 hours'
+      });
+    }
+  }
+
+  // ── RENDER STEPS ──────────────────────────────────────────────────────────
+  if (steps.length === 0) {
+    document.getElementById('steps-card').style.display = 'none';
+    document.getElementById('allclear-card').style.display = 'block';
+  } else {
+    document.getElementById('allclear-card').style.display = 'none';
+    document.getElementById('steps-card').style.display = 'block';
+    document.getElementById('steps-body').innerHTML = steps.map((s, i) => `
+      <div class="step-block">
+        <div class="step-header">
+          <div class="step-num step-num-${s.severity}">${i + 1}</div>
+          <div>
+            <div class="step-title">${s.title}</div>
+            <div class="step-subtitle">${s.subtitle}</div>
+          </div>
+        </div>
+        <div class="step-body">
+          <div class="step-dose">${s.dose}</div>
+          <div class="step-product">${s.product}</div>
+          <ul class="step-instructions">
+            ${s.instructions.map(ins => `<li>${ins}</li>`).join('')}
+          </ul>
+          ${s.warning ? `<div class="step-warning"><span>⚠ ${s.warning}</span></div>` : ''}
+          <div class="step-wait"><span>⏱ ${s.wait}</span></div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('results-area').style.display = 'block';
+  document.getElementById('results-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ─── CHAT ────────────────────────────────────────────────────────────────────
+function initChat() {
+  if (apiKey) {
+    document.getElementById('api-setup').style.display = 'none';
+    document.getElementById('chat-interface').style.display = 'block';
+  } else {
+    document.getElementById('api-setup').style.display = 'block';
+    document.getElementById('chat-interface').style.display = 'none';
+  }
+}
+
+function saveKey() {
+  const k = document.getElementById('api-key-input').value.trim();
+  if (!k.startsWith('sk-ant-')) { alert('That doesn\'t look like a valid Anthropic API key (should start with sk-ant-).'); return; }
+  apiKey = k; localStorage.setItem('spa_api_key', k); initChat();
+}
+
+function saveKeyFromSettings() {
+  const k = document.getElementById('settings-key-input').value.trim();
+  if (!k.startsWith('sk-ant-')) { alert('Invalid key format.'); return; }
+  apiKey = k; localStorage.setItem('spa_api_key', k);
+  alert('Key saved. Go to "Ask the spa" tab.');
+}
+
+function clearKey() {
+  if (confirm('Remove saved API key?')) { apiKey = ''; localStorage.removeItem('spa_api_key'); document.getElementById('settings-key-input').value = ''; }
+}
+
+function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || !apiKey) return;
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true; input.value = ''; input.style.height = 'auto';
+  const msgs = document.getElementById('chat-messages');
+  const ub = document.createElement('div');
+  ub.className = 'chat-bubble bubble-user'; ub.textContent = text; msgs.appendChild(ub);
+  const typing = document.createElement('div');
+  typing.className = 'typing'; typing.innerHTML = '<span></span><span></span><span></span>'; msgs.appendChild(typing);
+  msgs.scrollTop = msgs.scrollHeight;
+  chatHistory.push({ role:'user', content:text });
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'x-api-key':apiKey,
+        'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body:JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1024, system:SYSTEM_PROMPT, messages:chatHistory })
+    });
+    const data = await res.json(); typing.remove();
+    if (data.error) {
+      const eb = document.createElement('div'); eb.className = 'chat-bubble bubble-ai';
+      eb.innerHTML = `<div class="bubble-label">Error</div>${data.error.message}`; msgs.appendChild(eb);
+      chatHistory.pop();
+    } else {
+      const reply = data.content[0].text;
+      chatHistory.push({ role:'assistant', content:reply });
+      const ab = document.createElement('div'); ab.className = 'chat-bubble bubble-ai';
+      ab.innerHTML = `<div class="bubble-label">Spa assistant</div>${reply.replace(/\n/g,'<br>')}`; msgs.appendChild(ab);
+    }
+  } catch(err) {
+    typing.remove();
+    const eb = document.createElement('div'); eb.className = 'chat-bubble bubble-ai';
+    eb.innerHTML = `<div class="bubble-label">Error</div>Could not reach API. Check your connection.`; msgs.appendChild(eb);
+    chatHistory.pop();
+  }
+  msgs.scrollTop = msgs.scrollHeight; btn.disabled = false; input.focus();
+}
+
+function clearChat() {
+  chatHistory = [];
+  document.getElementById('chat-messages').innerHTML = `<div class="chat-bubble bubble-ai">
+    <div class="bubble-label">Spa assistant</div>
+    Hey! I know your Marquis Euphoria — 400 gal, FROG Serene bromine system, BioGuard products. Ask me anything.
+  </div>`;
+}
+
+function dismissBanner() { document.getElementById('install-banner').style.display='none'; localStorage.setItem('banner_dismissed','1'); }
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+window.addEventListener('load', () => {
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  if (!standalone && !localStorage.getItem('banner_dismissed')) document.getElementById('install-banner').style.display='flex';
+  if (apiKey && document.getElementById('settings-key-input')) document.getElementById('settings-key-input').value = apiKey;
+});
+</script>
+</body>
+</html>
