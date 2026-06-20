@@ -1,3 +1,4 @@
+<!-- Deploy test: 2026-06-20 14:05:40 UTC -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -860,7 +861,8 @@ async function sendMessage() {
       const reply = data.content[0].text;
       chatHistory.push({ role:'assistant', content:reply });
       const ab = document.createElement('div'); ab.className = 'chat-bubble bubble-ai';
-      ab.innerHTML = `<div class="bubble-label">Spa assistant</div>${reply.replace(/\n/g,'<br>')}`; msgs.appendChild(ab);
+      ab.innerHTML = `<div class="bubble-label">Spa assistant</div>${reply.replace(/
+/g,'<br>')}`; msgs.appendChild(ab);
     }
   } catch(err) {
     typing.remove();
