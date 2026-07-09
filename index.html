@@ -368,7 +368,16 @@
               Hey! I know your Marquis Euphoria inside and out — 400 gallons, FROG Serene in-line bromine system, BioGuard products. Ask me anything about chemistry, dosing, troubleshooting, or maintenance.
             </div>
           </div>
+          <div id="pdf-preview" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:8px;display:none;align-items:center;gap:8px;">
+            <span style="font-size:13px;color:var(--accent)">📄</span>
+            <span id="pdf-name" style="font-size:13px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+            <button onclick="clearPdf()" style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:0 2px;line-height:1;">×</button>
+          </div>
           <div class="chat-input-row">
+            <input type="file" id="pdf-input" accept="application/pdf" style="display:none" onchange="handlePdfSelect(event)">
+            <button onclick="document.getElementById('pdf-input').click()" title="Attach water test PDF" style="width:44px;height:44px;border-radius:11px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#90b8d8" stroke-width="1.8" width="20" height="20"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            </button>
             <textarea id="chat-input" placeholder="Ask a question…" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
             <button class="btn-send" id="send-btn" onclick="sendMessage()">
               <svg viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -465,19 +474,90 @@ const PARAMS = {
   tds:     { label:'TDS',        unit:'ppm', low:0, high:1500, max:3000, warnLow:-1, warnHigh:2000 }
 };
 
-const SYSTEM_PROMPT = `You are a knowledgeable hot tub water chemistry assistant for a Marquis Euphoria spa:
-- Volume: 400 US gallons
-- System: FROG Serene in-line bromine + mineral cartridges
-- Products: SpaGuard/BioGuard line (Brominating Concentrate, pH Decreaser, pH Increaser, Total Alkalinity Increaser, Calcium Hardness Increaser, Phosphate Remover, Water Clarifier, Stain & Scale Control, Natural Spa Enzyme)
-- SpaGuard Brominating Concentrate: 82.5% sodium dichloro + 14.7% sodium bromide
-- After each use: 2 tbsp Brominating Concentrate shock
-- Weekly: 1 tbsp Water Clarifier, 3 tbsp Stain & Scale, 0.5 cup Enzyme
-- Targets: Bromine 2-4ppm, pH 7.4-7.6, TA 120-150ppm, CH 100-200ppm, Phosphate 0-125ppb, TDS <1500ppm
-- Recent history: algae bloom, full drain/clean/refill, now fresh water
-Give exact doses in tsp/tbsp for 400 gallons. Be direct — user may be standing at the spa. Always give order and wait times when multiple chemicals needed.`;
+const SYSTEM_PROMPT = `You are a hot tub water chemistry expert and the dedicated assistant for this specific spa. You know this spa inside and out — always reason from these facts, never ask the user to re-establish them.
+
+## THE SPA
+- Model: Marquis Euphoria hot tub
+- Volume: exactly 400 US gallons
+- Sanitizer system: FROG Serene in-line system with two cartridges:
+  • Bromine cartridge (replaced every 4 weeks) — primary sanitizer
+  • Mineral cartridge (replaced every 4 months) — reduces bromine demand by ~50%
+- This is a BROMINE spa, not chlorine. All chemistry decisions must account for bromine behavior (wider effective pH range than chlorine, works better at higher pH, slower off-gassing).
+
+## PRODUCTS ON HAND (SpaGuard/BioGuard line)
+- SpaGuard Brominating Concentrate (shock): 82.5% sodium dichloro-s-triazinetrione + 14.7% sodium bromide. Used as oxidizer/shock, not primary sanitizer.
+- BioGuard pH Decreaser: sodium bisulfate (dry acid). 1 tsp lowers pH ~0.2 in 400 gal; lowers TA ~3 ppm as side effect.
+- BioGuard pH Increaser: sodium carbonate (soda ash). 1 tsp raises pH ~0.2 in 400 gal.
+- BioGuard Total Alkalinity Increaser: sodium bicarbonate. 2 tbsp raises TA ~12 ppm in 400 gal.
+- BioGuard Calcium Hardness Increaser: calcium chloride. 2 tbsp raises CH ~9 ppm in 400 gal.
+- SpaGuard Phosphate Remover: 1 tbsp per 100 gal for heavy phosphate load.
+- SpaGuard Water Clarifier: 1 tbsp per week.
+- SpaGuard Stain & Scale Control: 3 tbsp per week.
+- SpaGuard Natural Spa Enzyme: ½ cup per week.
+
+## TARGET RANGES
+- Bromine: 2–4 ppm (shock to 10 ppm after algae or heavy use)
+- pH: 7.4–7.6 (bromine remains effective up to 7.8; priority: never let pH drop below 7.2)
+- Total Alkalinity (TA): 120–150 ppm (TA buffer stabilizes pH; adjust TA before pH)
+- Calcium Hardness (CH): 100–200 ppm
+- Phosphate: 0–125 ppb
+- TDS: < 1500 ppm (above 1500 = drain and refill)
+
+## MAINTENANCE SCHEDULE
+- After EVERY use: 2 tbsp Brominating Concentrate shock; jets on 15 min; cover off 30 min
+- Weekly: 1 tbsp Water Clarifier + 3 tbsp Stain & Scale + ½ cup Enzyme; test strips for bromine and pH
+- Every 4 weeks: replace bromine cartridge; rinse filter with hose
+- Every 4 months: replace mineral cartridge; deep clean or replace filter; professional water test
+- Every 3–4 months: full drain and refill (Ahh-Some pipe purge first; hose pre-filter on refill)
+
+## DOSING RULES — ALWAYS FOLLOW
+1. Adjust TA before pH — TA corrections shift pH, so sequence matters.
+2. Never add two chemicals at the same time. Always circulate 15–30 min between additions.
+3. With pH Decreaser: add to water (not water to chemical); jets on; never exceed 1 tbsp per addition without retesting.
+4. When multiple corrections needed, give numbered steps with exact doses, wait times, and retest instructions.
+5. All doses are pre-calculated for 400 gallons. Never scale for pool volumes.
+6. If the user mentions a pool company recommendation that differs from yours, explain the likely reason (generic dosing vs. spa-specific, volume difference, conservative vs. aggressive approach) and give your recommendation with reasoning — do not just defer to the pool company without explaining the difference.
+
+## WHEN TEST RESULTS ARE PROVIDED (including PDF uploads from pool company)
+- Extract all parameter values from the results
+- Compare each to the target ranges above
+- Identify which parameters are out of range and by how much
+- Give a numbered correction sequence with exact doses for 400 gallons
+- Note which parameters are acceptable and need no action
+- If the test source is a pool company (like BioGuard dealer): their equipment (photometer/drop test) is more accurate than home test strips — acknowledge this and use their numbers.
+
+## COMMUNICATION STYLE
+- Be direct and confident. The user is often standing at the spa ready to add chemicals.
+- Lead with the answer, then explain if needed.
+- Use exact measurements (tsp/tbsp), never vague instructions like "a small amount."
+- Format multi-step instructions as a numbered list.
+- Keep responses concise unless the situation is complex.`;
+
 
 let chatHistory = [];
 let apiKey = localStorage.getItem('spa_api_key') || '';
+let pendingPdf = null; // { base64: string, name: string }
+
+function handlePdfSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const base64 = reader.result.split(',')[1];
+    pendingPdf = { base64, name: file.name };
+    const preview = document.getElementById('pdf-preview');
+    document.getElementById('pdf-name').textContent = file.name;
+    preview.style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function clearPdf() {
+  pendingPdf = null;
+  document.getElementById('pdf-preview').style.display = 'none';
+  document.getElementById('pdf-name').textContent = '';
+}
 
 // ─── TABS ────────────────────────────────────────────────────────────────────
 function switchTab(name, btn) {
@@ -844,22 +924,52 @@ function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(e
 async function sendMessage() {
   const input = document.getElementById('chat-input');
   const text = input.value.trim();
-  if (!text || !apiKey) return;
+  if ((!text && !pendingPdf) || !apiKey) return;
   const btn = document.getElementById('send-btn');
   btn.disabled = true; input.value = ''; input.style.height = 'auto';
+
   const msgs = document.getElementById('chat-messages');
+
+  // Build user message content (may include PDF + text)
+  let userContent;
+  const displayText = text || (pendingPdf ? `[Attached water test: ${pendingPdf.name}]` : '');
+
+  if (pendingPdf) {
+    userContent = [
+      { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pendingPdf.base64 } },
+      { type: 'text', text: text || 'Please read this water test report and tell me what needs to be corrected, with exact doses for my 400 gallon spa.' }
+    ];
+  } else {
+    userContent = text;
+  }
+
+  // Show user bubble
   const ub = document.createElement('div');
-  ub.className = 'chat-bubble bubble-user'; ub.textContent = text; msgs.appendChild(ub);
+  ub.className = 'chat-bubble bubble-user';
+  if (pendingPdf) {
+    ub.innerHTML = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:${text ? '6px' : '0'}"><span style="font-size:13px">📄</span><span style="font-size:12px;opacity:0.8">${pendingPdf.name}</span></div>${text ? `<div>${text}</div>` : ''}`;
+  } else {
+    ub.textContent = text;
+  }
+  msgs.appendChild(ub);
+
+  // Clear PDF state
+  if (pendingPdf) clearPdf();
+
   const typing = document.createElement('div');
   typing.className = 'typing'; typing.innerHTML = '<span></span><span></span><span></span>'; msgs.appendChild(typing);
   msgs.scrollTop = msgs.scrollHeight;
-  chatHistory.push({ role:'user', content:text });
+
+  // Add to history
+  chatHistory.push({ role: 'user', content: userContent });
+
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json', 'x-api-key':apiKey,
-        'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
-      body:JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1024, system:SYSTEM_PROMPT, messages:chatHistory })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true',
+        'anthropic-beta': 'pdfs-2024-09-25' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1024, system: SYSTEM_PROMPT, messages: chatHistory })
     });
     const data = await res.json(); typing.remove();
     if (data.error) {
@@ -868,7 +978,7 @@ async function sendMessage() {
       chatHistory.pop();
     } else {
       const reply = data.content[0].text;
-      chatHistory.push({ role:'assistant', content:reply });
+      chatHistory.push({ role: 'assistant', content: reply });
       const ab = document.createElement('div'); ab.className = 'chat-bubble bubble-ai';
       ab.innerHTML = `<div class="bubble-label">Spa assistant</div>${reply.replace(/\n/g,'<br>')}`; msgs.appendChild(ab);
     }
@@ -943,3 +1053,4 @@ window.addEventListener('load', () => {
 </script>
 </body>
 </html>
+
