@@ -33,6 +33,7 @@ no manual file handling, no downloads, no terminal commands from the user.
 | App | GitHub Repo | Live URL | Stack |
 |-----|------------|----------|-------|
 | Spa Assistant | Curious07Cress/spa-assistant | spa-assistant.erichasan.workers.dev | HTML/CSS/JS PWA, Open-Meteo weather, Anthropic API |
+| Hearth | Curious07Cress/hearth | hearth.erichasan.workers.dev |
 
 ---
 
