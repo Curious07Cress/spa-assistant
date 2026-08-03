@@ -34,6 +34,7 @@ no manual file handling, no downloads, no terminal commands from the user.
 |-----|------------|----------|-------|
 | Spa Assistant | Curious07Cress/spa-assistant | spa-assistant.erichasan.workers.dev | HTML/CSS/JS PWA, Open-Meteo weather, Anthropic API |
 | Hearth | Curious07Cress/hearth | hearth.erichasan.workers.dev |
+| Newsdeck | Curious07Cress/newsdeck | newsdeck.erichasan.workers.dev | Apple News-style RSS reader PWA — Phase 0 wireframe (mock data, single-file HTML) |
 
 ---
 
