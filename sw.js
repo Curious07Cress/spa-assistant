@@ -1,4 +1,4 @@
-const CACHE = 'spa-v1';
+const CACHE = 'spa-v2';
 const ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', e => {
@@ -15,7 +15,10 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  if (e.request.url.includes('api.anthropic.com')) return;
+  const url = new URL(e.request.url);
+  if (url.href.includes('api.anthropic.com')) return;
+  // Always network for guides + SEO files so content updates roll out
+  if (url.pathname.startsWith('/guides') || url.pathname === '/sitemap.xml' || url.pathname === '/robots.txt') return;
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
       const clone = res.clone();
