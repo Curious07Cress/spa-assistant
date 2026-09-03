@@ -251,10 +251,29 @@
       </div>
 
       <div class="card">
+        <div class="card-title">Your tub</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <div class="input-label">Volume <span class="input-range">gallons</span></div>
+            <input type="number" id="profile-gallons" min="50" max="3000" step="10" inputmode="numeric" onchange="saveProfile()">
+          </div>
+          <div class="input-group">
+            <div class="input-label">Sanitizer system</div>
+            <select id="profile-system" onchange="saveProfile()" style="width:100%;padding:10px;border-radius:8px;background:var(--card,#12233a);color:inherit;border:1px solid var(--border,#24405f)">
+              <option value="chlorine">Chlorine</option>
+              <option value="bromine">Bromine</option>
+              <option value="frog-bromine">FROG mineral + bromine</option>
+              <option value="chlorine-mineral">Mineral + chlorine (@ease etc.)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="card-title">Enter test results</div>
         <div class="input-grid">
           <div class="input-group">
-            <div class="input-label">Bromine <span class="input-range">2–4 ppm</span></div>
+            <div class="input-label"><span id="san-label-text">Bromine</span> <span class="input-range" id="san-range">2–4 ppm</span></div>
             <input type="number" id="bromine" placeholder="ppm" min="0" max="20" step="0.1" inputmode="decimal">
           </div>
           <div class="input-group">
@@ -601,271 +620,60 @@ function fmtDose(tsp) {
 
 function needsDivide(tsp) { return tsp / 3 > 3; } // > 3 tbsp → divide into thirds
 
-// ─── ANALYZE ────────────────────────────────────────────────────────────────
+// ─── ANALYZE (engine-backed) ────────────────────────────────────────────────
+const AFF_TAG = 'spawaterfix-20';
+function prodLink(q, label) {
+  if (!q) return label;
+  return `<a href="https://www.amazon.com/s?k=${encodeURIComponent(q)}&tag=${AFF_TAG}" target="_blank" rel="sponsored nofollow" style="color:var(--accent)">${label} →</a>`;
+}
+function stars(score) { const f = Math.round(score * 5); return '★'.repeat(f) + '☆'.repeat(5 - f); }
+
 function analyze() {
-  const vals = {
-    bromine: parseFloat(document.getElementById('bromine').value),
-    ph:      parseFloat(document.getElementById('ph').value),
-    ta:      parseFloat(document.getElementById('ta').value),
-    ch:      parseFloat(document.getElementById('ch').value),
-    phos:    parseFloat(document.getElementById('phos').value),
-    tds:     parseFloat(document.getElementById('tds').value)
+  const sys = SpaChem.SYSTEMS[PROFILE.system];
+  const readings = {
+    ph:   parseFloat(document.getElementById('ph').value),
+    ta:   parseFloat(document.getElementById('ta').value),
+    ch:   parseFloat(document.getElementById('ch').value),
+    phos: parseFloat(document.getElementById('phos').value),
+    tds:  parseFloat(document.getElementById('tds').value)
   };
+  readings[sys.sanitizerKey] = parseFloat(document.getElementById('bromine').value);
 
-  const hasAny = Object.values(vals).some(v => !isNaN(v));
-  if (!hasAny) { alert('Enter at least one test result.'); return; }
+  const res = SpaChem.analyzeWater(PROFILE, readings);
+  if (res.error) { alert(res.error); return; }
 
-  // ── GAUGES ────────────────────────────────────────────────────────────────
-  let gaugesHtml = '';
-  for (const [key, cfg] of Object.entries(PARAMS)) {
-    const v = vals[key];
-    if (isNaN(v)) continue;
-    const pct = Math.min(100, (v / cfg.max) * 100);
-    const lowPct = (cfg.low / cfg.max) * 100;
-    const highPct = (cfg.high / cfg.max) * 100;
-    let status, color;
-    if (v < cfg.low) { status = 'LOW'; color = v < cfg.warnLow ? 'var(--danger)' : 'var(--warn)'; }
-    else if (v > cfg.high) { status = 'HIGH'; color = v > cfg.warnHigh ? 'var(--danger)' : 'var(--warn)'; }
-    else { status = 'OK'; color = 'var(--ok)'; }
-    const badgeClass = status === 'OK' ? 'gbadge-ok' : (color === 'var(--danger)' ? 'gbadge-danger' : 'gbadge-warn');
-    gaugesHtml += `<div class="gauge-row">
-      <div class="gauge-name">${cfg.label}</div>
+  // gauges
+  document.getElementById('gauges-body').innerHTML = res.gauges.map(g => {
+    const pct = Math.min(100, (g.value / g.max) * 100);
+    const color = g.severity === 'ok' ? 'var(--ok)' : g.severity === 'warn' ? 'var(--warn)' : 'var(--danger)';
+    const badge = g.severity === 'ok' ? 'gbadge-ok' : g.severity === 'warn' ? 'gbadge-warn' : 'gbadge-danger';
+    return `<div class="gauge-row">
+      <div class="gauge-name">${g.label}</div>
       <div class="gauge-track">
         <div class="gauge-fill" style="width:${pct}%;background:${color}"></div>
-        <div class="gauge-marker" style="left:${lowPct}%"></div>
-        <div class="gauge-marker" style="left:${highPct}%"></div>
+        <div class="gauge-marker" style="left:${(g.low / g.max) * 100}%"></div>
+        <div class="gauge-marker" style="left:${(g.high / g.max) * 100}%"></div>
       </div>
-      <div class="gauge-val" style="color:${color}">${v}${cfg.unit ? ' ' + cfg.unit : ''}</div>
-      <div class="gauge-badge ${badgeClass}">${status}</div>
+      <div class="gauge-val" style="color:${color}">${g.value}${g.unit ? ' ' + g.unit : ''}</div>
+      <div class="gauge-badge ${badge}">${g.status}</div>
     </div>`;
-  }
-  document.getElementById('gauges-body').innerHTML = gaugesHtml;
+  }).join('');
 
-  // ── QUALITY SCORE ─────────────────────────────────────────────────────────
-  function stars(score) {
-    const full = Math.round(score * 5);
-    return '★'.repeat(full) + '☆'.repeat(5 - full);
-  }
-  // Comfort: pH + bromine + CH
-  let comfortScore = 1;
-  if (!isNaN(vals.ph)) comfortScore -= (vals.ph < 7.4 || vals.ph > 7.6) ? 0.25 : 0;
-  if (!isNaN(vals.bromine)) comfortScore -= (vals.bromine < 2 || vals.bromine > 5) ? 0.25 : 0;
-  if (!isNaN(vals.ch)) comfortScore -= vals.ch < 100 ? 0.2 : 0;
-  // Clarity: TA + TDS + phosphate
-  let clarityScore = 1;
-  if (!isNaN(vals.ta)) clarityScore -= (vals.ta < 120 || vals.ta > 150) ? 0.2 : 0;
-  if (!isNaN(vals.tds)) clarityScore -= vals.tds > 1500 ? 0.3 : 0;
-  if (!isNaN(vals.phos)) clarityScore -= vals.phos > 125 ? 0.25 : 0;
-  // Protection: bromine + pH + phosphate
-  let protScore = 1;
-  if (!isNaN(vals.bromine)) protScore -= (vals.bromine < 2) ? 0.4 : 0;
-  if (!isNaN(vals.ph)) protScore -= (vals.ph < 7.2 || vals.ph > 7.8) ? 0.3 : 0;
-  if (!isNaN(vals.phos)) protScore -= vals.phos > 500 ? 0.3 : 0;
-  [comfortScore, clarityScore, protScore] = [comfortScore, clarityScore, protScore].map(s => Math.max(0, Math.min(1, s)));
-
+  // scores
   document.getElementById('score-body').innerHTML = `<div class="score-grid">
-    <div class="score-cell"><div class="score-label">Comfort</div><div class="score-stars" style="color:var(--warn)">${stars(comfortScore)}</div></div>
-    <div class="score-cell"><div class="score-label">Clarity</div><div class="score-stars" style="color:var(--warn)">${stars(clarityScore)}</div></div>
-    <div class="score-cell"><div class="score-label">Protection</div><div class="score-stars" style="color:var(--warn)">${stars(protScore)}</div></div>
+    <div class="score-cell"><div class="score-label">Comfort</div><div class="score-stars" style="color:var(--warn)">${stars(res.scores.comfort)}</div></div>
+    <div class="score-cell"><div class="score-label">Clarity</div><div class="score-stars" style="color:var(--warn)">${stars(res.scores.clarity)}</div></div>
+    <div class="score-cell"><div class="score-label">Protection</div><div class="score-stars" style="color:var(--warn)">${stars(res.scores.protection)}</div></div>
   </div>`;
 
-  // ── CORRECTIVE STEPS (ordered correctly) ──────────────────────────────────
-  const steps = [];
-
-  // Step priority order: TA → pH → CH → Phosphate → Bromine (always last)
-  // TOTAL ALKALINITY
-  if (!isNaN(vals.ta)) {
-    if (vals.ta < 120) {
-      const delta = 120 - vals.ta;
-      const tsp = (delta / 12.5) * 6;
-      const dose = fmtDose(tsp);
-      const divide = needsDivide(tsp);
-      steps.push({
-        severity: vals.ta < 80 ? 'danger' : 'warn',
-        title: 'Low Total Alkalinity',
-        subtitle: `Your result: ${vals.ta} ppm · Ideal: 120–150 ppm`,
-        product: 'Spa Total Alkalinity Increaser',
-        dose: `Add ${dose}`,
-        instructions: [
-          divide ? `Divide into 3 equal doses, 1 hour apart` : null,
-          'Add with jets running',
-          'Do not enter spa for 15 minutes after applying',
-          'Wait 15 minutes, then proceed to next step'
-        ].filter(Boolean),
-        warning: 'Low alkalinity causes pH to swing wildly and corrodes equipment.',
-        wait: '15 minutes before next step'
-      });
-    } else if (vals.ta > 150) {
-      const delta = vals.ta - 150;
-      const tsp = (delta / 12.5) * 6;
-      steps.push({
-        severity: 'warn',
-        title: 'High Total Alkalinity',
-        subtitle: `Your result: ${vals.ta} ppm · Ideal: 120–150 ppm`,
-        product: 'Spa pH Decreaser (dry acid)',
-        dose: `Add ${fmtDose(tsp)} with jets OFF, air on`,
-        instructions: [
-          'Turn jets OFF, turn air/blower ON',
-          'Add chemical, aerate for 1 hour',
-          'Repeat over 2–3 days if needed — do not try to fix in one shot',
-          'Retest before proceeding'
-        ],
-        warning: 'High alkalinity locks pH and reduces sanitizer efficiency.',
-        wait: '1 hour before next step'
-      });
-    }
-  }
-
-  // pH
-  if (!isNaN(vals.ph)) {
-    if (vals.ph < 7.4) {
-      const delta = 7.5 - vals.ph;
-      const tsp = delta / 0.25;
-      steps.push({
-        severity: vals.ph < 7.0 ? 'danger' : 'warn',
-        title: 'pH Adjustment Required — Too Low',
-        subtitle: `Your result: ${vals.ph} · Ideal: 7.4–7.6`,
-        product: 'Spa pH Increaser (sodium carbonate / soda ash)',
-        dose: `Add ${fmtDose(tsp)}`,
-        instructions: [
-          'Add with jets running',
-          'Wait at least 15 minutes, then retest',
-          'Do not enter spa for 15 minutes'
-        ],
-        warning: 'Low pH causes eye and skin irritation and corrodes equipment.',
-        wait: '15 minutes before next step'
-      });
-    } else if (vals.ph > 7.6) {
-      const delta = vals.ph - 7.5;
-      const tsp = delta / 0.25;
-      steps.push({
-        severity: vals.ph > 8.0 ? 'danger' : 'warn',
-        title: 'pH Adjustment Required — Too High',
-        subtitle: `Your result: ${vals.ph} · Ideal: 7.4–7.6`,
-        product: 'Spa pH Decreaser (sodium bisulfate)',
-        dose: `Add ${fmtDose(tsp)}`,
-        instructions: [
-          'Add with jets running',
-          'Wait at least 15 minutes after application, then retest',
-          'Do not enter spa for 15 minutes',
-          'High pH severely reduces bromine effectiveness — fix before adding sanitizer'
-        ],
-        warning: 'At pH 8.0+, up to 90% of your bromine is ineffective.',
-        wait: '15 minutes before next step'
-      });
-    }
-  }
-
-  // CALCIUM HARDNESS
-  if (!isNaN(vals.ch)) {
-    if (vals.ch < 100) {
-      const delta = 150 - vals.ch;
-      const tsp = (delta / 8.75) * 6;
-      const divide = needsDivide(tsp) || delta > 50;
-      steps.push({
-        severity: vals.ch < 50 ? 'danger' : 'warn',
-        title: 'Low Calcium Hardness',
-        subtitle: `Your result: ${vals.ch} ppm · Ideal: 100–200 ppm`,
-        product: 'Spa Calcium Hardness Increaser (calcium chloride)',
-        dose: `Add ${fmtDose(tsp)}`,
-        instructions: [
-          divide ? 'Divide into 3 equal doses' : null,
-          divide ? 'Wait 2 hours between each dose' : null,
-          'Apply each dose with jets running',
-          'Leave circulation on for at least 30 minutes per dose',
-          'Calcium chloride generates heat — add slowly'
-        ].filter(Boolean),
-        warning: 'Soft water is corrosive to your acrylic shell and equipment.',
-        wait: '2 hours before next step'
-      });
-    } else if (vals.ch > 200) {
-      const targetCh = 150;
-      const gallonsToDrain = Math.round(((vals.ch - targetCh) / vals.ch) * SPA.gallons);
-      steps.push({
-        severity: 'warn',
-        title: 'High Calcium Hardness',
-        subtitle: `Your result: ${vals.ch} ppm · Ideal: 100–200 ppm`,
-        product: 'Fresh water (dilution — no chemical fix)',
-        dose: `Drain and replace ~${gallonsToDrain} gallons`,
-        instructions: [
-          `Drain approximately ${gallonsToDrain} gallons`,
-          'Refill with fresh water through hose pre-filter',
-          'Run jets 30 minutes to mix',
-          'Retest before proceeding'
-        ],
-        warning: 'High hardness causes scaling on shell, jets, and heater.',
-        wait: '30 minutes after refill before next step'
-      });
-    }
-  }
-
-  // PHOSPHATE
-  if (!isNaN(vals.phos) && vals.phos > 125) {
-    const tbsp = Math.ceil((vals.phos / 125) * 2.5); // scale with severity
-    steps.push({
-      severity: vals.phos > 500 ? 'danger' : 'warn',
-      title: 'High Phosphate',
-      subtitle: `Your result: ${vals.phos} ppb · Ideal: 0–125 ppb`,
-      product: 'Spa Phosphate Remover + Water Clarifier',
-      dose: `Add ${tbsp} tbsp Phosphate Remover, immediately follow with 3 tbsp Water Clarifier`,
-      instructions: [
-        'Apply Spa Phosphate Remover first',
-        'Immediately follow with Water Clarifier — do not wait between them',
-        'Jets running during application',
-        'Do not enter spa for 15 minutes'
-      ],
-      warning: 'Phosphate feeds algae and degrades water quality rapidly.',
-      wait: '15 minutes before next step'
-    });
-  }
-
-  // BROMINE — always last
-  if (!isNaN(vals.bromine)) {
-    if (vals.bromine < 2) {
-      const delta = 3.0 - vals.bromine;
-      const tsp = delta / 0.625;
-      steps.push({
-        severity: vals.bromine < 0.5 ? 'danger' : 'warn',
-        title: 'Low Bromine',
-        subtitle: `Your result: ${vals.bromine} ppm · Ideal: 2–4 ppm`,
-        product: 'SpaGuard Brominating Concentrate',
-        dose: `Add ${fmtDose(tsp)}`,
-        instructions: [
-          'Pre-dissolve in a bucket of spa water first',
-          'Pour around the perimeter near return jets',
-          'Jets on 15 minutes',
-          'Leave cover off for 30 minutes',
-          'Retest in 1 hour before using spa'
-        ],
-        warning: vals.bromine < 0.5 ? 'Do not use spa — water is unsanitized.' : null,
-        wait: '1 hour — retest before use'
-      });
-    } else if (vals.bromine > 6) {
-      steps.push({
-        severity: vals.bromine > 10 ? 'danger' : 'warn',
-        title: 'High Bromine',
-        subtitle: `Your result: ${vals.bromine} ppm · Ideal: 2–4 ppm`,
-        product: 'None — allow natural dissipation',
-        dose: 'Do not add any chemicals',
-        instructions: [
-          'Leave cover off with jets running to off-gas bromine',
-          'Retest every 2 hours',
-          vals.bromine > 8 ? 'Do not enter spa until bromine drops below 8 ppm' : 'Do not enter spa until bromine drops below 5 ppm'
-        ],
-        warning: vals.bromine > 8 ? 'Do not enter spa until bromine drops below 8 ppm.' : null,
-        wait: 'Retest in 2 hours'
-      });
-    }
-  }
-
-  // ── RENDER STEPS ──────────────────────────────────────────────────────────
-  if (steps.length === 0) {
+  // steps
+  if (res.steps.length === 0) {
     document.getElementById('steps-card').style.display = 'none';
     document.getElementById('allclear-card').style.display = 'block';
   } else {
     document.getElementById('allclear-card').style.display = 'none';
     document.getElementById('steps-card').style.display = 'block';
-    document.getElementById('steps-body').innerHTML = steps.map((s, i) => `
+    document.getElementById('steps-body').innerHTML = res.steps.map((s, i) => `
       <div class="step-block">
         <div class="step-header">
           <div class="step-num step-num-${s.severity}">${i + 1}</div>
@@ -876,15 +684,12 @@ function analyze() {
         </div>
         <div class="step-body">
           <div class="step-dose">${s.dose}</div>
-          <div class="step-product">${s.product}</div>
-          <ul class="step-instructions">
-            ${s.instructions.map(ins => `<li>${ins}</li>`).join('')}
-          </ul>
+          <div class="step-product">${prodLink(s.productQuery, s.product)}</div>
+          <ul class="step-instructions">${s.instructions.map(x => `<li>${x}</li>`).join('')}</ul>
           ${s.warning ? `<div class="step-warning"><span>⚠ ${s.warning}</span></div>` : ''}
-          <div class="step-wait"><span>⏱ ${s.wait}</span></div>
         </div>
-      </div>
-    `).join('');
+      </div>`).join('')
+      + '<div style="font-size:.75rem;opacity:.6;margin-top:8px">As an Amazon Associate, this site earns from qualifying purchases.</div>';
   }
 
   document.getElementById('results-area').style.display = 'block';
@@ -1048,6 +853,9 @@ setInterval(loadWeather, 15 * 60 * 1000);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 window.addEventListener('load', () => {
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  document.getElementById('profile-gallons').value = PROFILE.gallons;
+  document.getElementById('profile-system').value = PROFILE.system;
+  syncSanitizerUI();
   if (!standalone && !localStorage.getItem('banner_dismissed')) document.getElementById('install-banner').style.display='flex';
   if (apiKey && document.getElementById('settings-key-input')) document.getElementById('settings-key-input').value = apiKey;
 });
