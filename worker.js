@@ -46,6 +46,13 @@ Rules: numbers only when stated or clearly implied ("pH around 8" -> 8.0). "chlo
   let data;
   try { data = JSON.parse(parsed.replace(/```json|```/g, '').trim()); } catch { data = { readings: {} }; }
 
+  // Trust a reading only if its number literally appears in the user's message. The parser sometimes
+  // fills untested values with 0 instead of null, which would otherwise yield invented doses.
+  const mentioned = n => new RegExp(`(^|[^\\d.])${String(n).replace('.', '\\.')}(?!\\d)`).test(message);
+  data.readings = Object.fromEntries(Object.entries(data.readings || {})
+    .filter(([, v]) => typeof v === 'number' && Number.isFinite(v) && mentioned(v)));
+  if (data.gallons != null && !mentioned(data.gallons)) data.gallons = null;
+
   // ── deterministic engine (when we have enough to compute)
   const profile = {
     gallons: data.gallons || savedProfile?.gallons || null,
