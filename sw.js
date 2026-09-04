@@ -1,4 +1,4 @@
-const CACHE = 'spa-v4';
+const CACHE = 'spa-v5';
 const ASSETS = ['/', '/index.html', '/manifest.json', '/chemistry.js'];
 
 // Store responses stripped of the "redirected" flag (Safari rejects redirected
@@ -31,6 +31,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
+  if (url.pathname.startsWith('/api/')) return;   // API is never cached or intercepted
   if (url.href.includes('api.anthropic.com')) return;
   if (url.pathname.startsWith('/guides') || url.pathname === '/sitemap.xml' || url.pathname === '/robots.txt') return;
 
