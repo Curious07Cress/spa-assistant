@@ -1,0 +1,13 @@
+# Not served as static assets (everything else in the repo root is public).
+.git
+.gitignore
+.assetsignore
+.wrangler
+.dev.vars*
+node_modules
+worker.js
+wrangler.jsonc
+wrangler.toml
+package.json
+package-lock.json
+*.md

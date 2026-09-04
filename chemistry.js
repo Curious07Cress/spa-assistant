@@ -241,4 +241,7 @@ function analyzeWater(profile, readings) {
   }
 }
 
-window.SpaChem = { SYSTEMS, SHARED, analyzeWater, fmtDose };
+// Browser global (index.html loads this file with <script type="module"> and reads window.SpaChem).
+if (typeof window !== 'undefined') window.SpaChem = { SYSTEMS, SHARED, analyzeWater, fmtDose };
+// ES exports (worker.js imports these; `window` does not exist in the Workers runtime).
+export { SYSTEMS, SHARED, analyzeWater, fmtDose };

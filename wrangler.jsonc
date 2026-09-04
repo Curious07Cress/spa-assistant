@@ -1,0 +1,24 @@
+// SpaWaterFix — Cloudflare Worker config.
+// Named wrangler.jsonc (not .toml) on purpose: Workers Builds injects a wrangler.jsonc at build time
+// when the repo has none, and wrangler prefers .jsonc over .toml — a repo wrangler.toml would be ignored.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "spa-assistant",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-01",
+  "observability": { "enabled": true },
+
+  // index.html, guides/, chemistry.js etc. served as static assets; worker.js runs first for /api/*.
+  // Files excluded from upload are listed in .assetsignore.
+  "assets": {
+    "directory": "./",
+    "binding": "ASSETS"
+  },
+
+  // Create with: npx wrangler kv namespace create RATE_KV   -> paste the id below
+  "kv_namespaces": [
+    { "binding": "RATE_KV", "id": "REPLACE_WITH_KV_ID" }
+  ]
+
+  // Secret (never in this file): npx wrangler secret put ANTHROPIC_API_KEY
+}
